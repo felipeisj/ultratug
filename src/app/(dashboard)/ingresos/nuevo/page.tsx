@@ -38,6 +38,11 @@ export default function NuevoIngresoPage() {
   const [warehouses, setWarehouses] = useState<any[]>([])
   const [profiles, setProfiles] = useState<any[]>([])
   
+  // Inline warehouse creation
+  const [showNewWarehouse, setShowNewWarehouse] = useState(false)
+  const [newWarehouseName, setNewWarehouseName] = useState('')
+  const [creatingWarehouse, setCreatingWarehouse] = useState(false)
+
   // Form State
   const [productSearch, setProductSearch] = useState('')
   const [foundProducts, setFoundProducts] = useState<any[]>([])
@@ -58,10 +63,31 @@ export default function NuevoIngresoPage() {
   }, [])
 
   const fetchInitialData = async () => {
-    const { data: whData } = await supabase.from('warehouses').select('*, ships(name)').order('name')
+    const { data: whData } = await supabase.from('warehouses').select('*').order('name')
     const { data: profData } = await supabase.from('profiles').select('*').order('full_name')
     if (whData) setWarehouses(whData)
     if (profData) setProfiles(profData)
+  }
+
+  const handleCreateWarehouse = async () => {
+    if (!newWarehouseName.trim()) return
+    setCreatingWarehouse(true)
+    try {
+      const { data, error: err } = await supabase
+        .from('warehouses')
+        .insert({ name: newWarehouseName.trim() })
+        .select('*')
+        .single()
+      if (err) throw err
+      setWarehouses(prev => [...prev, data])
+      setFormData(f => ({ ...f, warehouse_id: data.id }))
+      setNewWarehouseName('')
+      setShowNewWarehouse(false)
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setCreatingWarehouse(false)
+    }
   }
 
   const handleProductSearch = async (val: string) => {
@@ -309,18 +335,47 @@ export default function NuevoIngresoPage() {
             <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 border-b pb-2">2. Destino y Cantidad</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-sm font-semibold text-slate-700 block mb-1">Pañol de Destino</label>
-                <select
-                  required
-                  value={formData.warehouse_id}
-                  onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
-                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
-                >
-                  <option value="">Seleccionar pañol...</option>
-                  {warehouses.map(w => (
-                    <option key={w.id} value={w.id}>{w.ships?.name} - {w.name}</option>
-                  ))}
-                </select>
+                <div className="flex justify-between items-center mb-1">
+                  <label className="text-sm font-semibold text-slate-700">Pañol de Destino</label>
+                  <button
+                    type="button"
+                    onClick={() => setShowNewWarehouse(!showNewWarehouse)}
+                    className="text-xs text-blue-600 hover:underline font-semibold flex items-center gap-1"
+                  >
+                    <Plus size={12} /> {showNewWarehouse ? 'Cancelar' : 'Crear nuevo'}
+                  </button>
+                </div>
+                {showNewWarehouse ? (
+                  <div className="flex gap-2 p-3 bg-blue-50 rounded-xl border border-blue-200">
+                    <input
+                      type="text"
+                      placeholder="Nombre del pañol (ej: Sala de Máquinas)"
+                      value={newWarehouseName}
+                      onChange={(e) => setNewWarehouseName(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-slate-300 outline-none text-slate-900 text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateWarehouse}
+                      disabled={creatingWarehouse || !newWarehouseName.trim()}
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all disabled:opacity-50"
+                    >
+                      {creatingWarehouse ? <Loader2 className="animate-spin" size={16} /> : 'Crear'}
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    required={!showNewWarehouse}
+                    value={formData.warehouse_id}
+                    onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
+                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
+                  >
+                    <option value="">Seleccionar pañol...</option>
+                    {warehouses.map(w => (
+                      <option key={w.id} value={w.id}>{w.name}</option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div>
@@ -328,11 +383,11 @@ export default function NuevoIngresoPage() {
                 <input
                   type="number"
                   min="1"
-                  step="any"
+                  step="1"
                   required
                   value={formData.quantity}
-                  onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value)})}
-                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none"
+                  onChange={(e) => setFormData({...formData, quantity: Math.max(1, parseInt(e.target.value) || 1)})}
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-slate-900"
                 />
               </div>
 

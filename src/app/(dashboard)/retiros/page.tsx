@@ -16,12 +16,13 @@ export default function RetirosPage() {
 
   const fetchRetiros = async () => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('movements')
-      .select('*, products(name, barcode), from:warehouses!movements_from_warehouse_id_fkey(name, ships(name)), to:warehouses!movements_to_warehouse_id_fkey(name, ships(name)), sent_by_profile:profiles!movements_sent_by_fkey(full_name)')
+      .select('*, products(name, barcode), from_warehouse:warehouses!movements_from_warehouse_id_fkey(name), to_warehouse:warehouses!movements_to_warehouse_id_fkey(name), sent_by_profile:profiles!movements_sent_by_fkey(full_name)')
       .in('type', ['RETIRO', 'TRASLADO'])
       .order('created_at', { ascending: false })
     
+    if (error) console.error('Error fetching retiros:', error)
     if (data) setMovements(data)
     setLoading(false)
   }
@@ -83,16 +84,10 @@ export default function RetirosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          <span className="text-slate-700 font-medium">{m.from?.name}</span>
-                          <span className="text-[10px] text-slate-400">{m.from?.ships?.name}</span>
-                        </div>
-                        <ArrowRightLeft size={14} className="text-slate-300" />
-                        <div className="flex flex-col">
-                          <span className="text-slate-700 font-medium">{m.to?.name || 'CONSUMO'}</span>
-                          <span className="text-[10px] text-slate-400">{m.to?.ships?.name || 'Baja / Uso'}</span>
-                        </div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-slate-700 font-medium">{m.from_warehouse?.name || 'EXTERNO'}</span>
+                        <ArrowRightLeft size={14} className="text-slate-300 shrink-0" />
+                        <span className="text-slate-700 font-medium">{m.to_warehouse?.name || 'CONSUMO'}</span>
                       </div>
                     </td>
                     <td className="px-6 py-4 text-center font-bold text-slate-900">

@@ -34,8 +34,18 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  // refreshing the auth token
-  await supabase.auth.getUser()
+  // Refresh the auth token
+  const { data: { user } } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  // If accessing a protected route without being authenticated, redirect to login
+  const isProtectedRoute = !pathname.startsWith('/login') && !pathname.startsWith('/auth')
+  if (!user && isProtectedRoute) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }

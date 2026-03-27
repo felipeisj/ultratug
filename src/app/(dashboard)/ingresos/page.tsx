@@ -16,12 +16,13 @@ export default function IngresosPage() {
 
   const fetchIngresos = async () => {
     setLoading(true)
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('movements')
-      .select('*, products(name, barcode), warehouses(name, ships(name)), received_by_profile:profiles!movements_received_by_fkey(full_name)')
+      .select('*, products(name, barcode), to_warehouse:warehouses!movements_to_warehouse_id_fkey(name), received_by_profile:profiles!movements_received_by_fkey(full_name)')
       .eq('type', 'INGRESO')
       .order('created_at', { ascending: false })
     
+    if (error) console.error('Error fetching ingresos:', error)
     if (data) setMovements(data)
     setLoading(false)
   }
@@ -77,10 +78,7 @@ export default function IngresosPage() {
                       </div>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-sm font-medium text-slate-700">{m.warehouses?.name}</span>
-                        <span className="text-xs text-blue-500">{m.warehouses?.ships?.name}</span>
-                      </div>
+                      <span className="text-sm font-medium text-slate-700">{m.to_warehouse?.name || '—'}</span>
                     </td>
                     <td className="px-6 py-4 text-center">
                       <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">

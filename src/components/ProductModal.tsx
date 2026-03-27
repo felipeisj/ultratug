@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { X, Save, Loader2, Barcode as BarcodeIcon } from 'lucide-react'
 import { generateShortBarcode } from '@/utils/barcode'
@@ -24,7 +24,19 @@ export default function ProductModal({ isOpen, onClose, onSuccess, product }: Pr
     unit: product?.unit || 'unidad'
   })
 
+  // Sync form data when the product prop changes (e.g. clicking edit on a different product)
+  useEffect(() => {
+    setFormData({
+      name: product?.name || '',
+      description: product?.description || '',
+      barcode: product?.barcode || generateShortBarcode(),
+      unit: product?.unit || 'unidad'
+    })
+    setError(null)
+  }, [product])
+
   if (!isOpen) return null
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

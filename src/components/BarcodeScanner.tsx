@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
-import { Html5QrcodeScanner, Html5QrcodeScanType } from 'html5-qrcode'
-import { X, Camera, RefreshCw } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
+import { X, Camera, RefreshCw, Loader2 } from 'lucide-react'
 
 interface BarcodeScannerProps {
   isOpen: boolean
@@ -11,48 +11,55 @@ interface BarcodeScannerProps {
 }
 
 export default function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScannerProps) {
-  const [scanner, setScanner] = useState<Html5QrcodeScanner | null>(null)
-  const scannerRef = useRef<HTMLDivElement>(null)
+  const [html5QrCode, setHtml5QrCode] = useState<Html5Qrcode | null>(null)
+  const [cameraStatus, setCameraStatus] = useState<'idle' | 'starting' | 'running' | 'error'>('idle')
 
   useEffect(() => {
-    if (isOpen && !scanner) {
-      // Small delay to ensure the div is in the DOM
-      const timer = setTimeout(() => {
-        const newScanner = new Html5QrcodeScanner(
-          "reader",
-          { 
-            fps: 10, 
-            qrbox: { width: 250, height: 150 },
-            supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA],
-            aspectRatio: 1.0
-          },
-          /* verbose= */ false
-        )
-        
-        newScanner.render(
-          (decodedText) => {
-            onScan(decodedText)
-            newScanner.clear().then(() => {
-              onClose()
-            }).catch(error => {
-              console.error("Failed to clear scanner", error)
-              onClose()
-            })
-          },
-          (errorMessage) => {
-            // Silently ignore errors (failing to scan in each frame is normal)
-          }
-        )
-        setScanner(newScanner)
-      }, 100)
-      return () => clearTimeout(timer)
+    if (isOpen && !html5QrCode) {
+      const instance = new Html5Qrcode("reader")
+      setHtml5QrCode(instance)
+      startCamera(instance)
     }
 
-    if (!isOpen && scanner) {
-      scanner.clear().catch(error => console.error("Failed to clear scanner", error))
-      setScanner(null)
+    return () => {
+      if (html5QrCode) {
+        stopCamera()
+      }
     }
   }, [isOpen])
+
+  const startCamera = async (instance: Html5Qrcode) => {
+    setCameraStatus('starting')
+    try {
+      await instance.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        (decodedText) => {
+          onScan(decodedText)
+          stopCamera()
+          onClose()
+        },
+        () => { } // Silently ignore frame scan failures
+      )
+      setCameraStatus('running')
+    } catch (err) {
+      console.error("Error starting camera:", err)
+      setCameraStatus('error')
+    }
+  }
+
+  const stopCamera = async () => {
+    if (html5QrCode && html5QrCode.isScanning) {
+      try {
+        await html5QrCode.stop()
+      } catch (err) {
+        console.error("Error stopping camera:", err)
+      }
+    }
+  }
 
   if (!isOpen) return null
 
@@ -64,7 +71,7 @@ export default function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScann
             <Camera className="text-blue-600" size={24} />
             <h3 className="text-xl font-bold">Escanear Código</h3>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-all"
           >
@@ -72,53 +79,62 @@ export default function BarcodeScanner({ isOpen, onClose, onScan }: BarcodeScann
           </button>
         </div>
 
-        <div className="p-6 bg-slate-50">
-          <div id="reader" className="overflow-hidden rounded-2xl border-4 border-white shadow-inner bg-black min-h-[300px]" ref={scannerRef}>
-            {/* html5-qrcode-scanner will inject the video here */}
+        <div className="p-6 bg-slate-50 relative min-h-[350px] flex flex-col items-center justify-center">
+          <div id="reader" className="w-full h-full overflow-hidden rounded-2xl border-4 border-white shadow-inner bg-black aspect-square max-w-[300px]">
+            {/* Camera feed will be injected here */}
           </div>
-          
-          <div className="mt-6 flex flex-col items-center text-center space-y-2">
-            <div className="animate-pulse bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest">
-              Buscando Código...
+
+          {cameraStatus === 'starting' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-50/80 backdrop-blur-sm z-10">
+              <Loader2 className="animate-spin text-blue-600 mb-4" size={40} />
+              <p className="text-sm font-bold text-slate-600">Encendiendo Cámara...</p>
             </div>
-            <p className="text-sm text-slate-500 font-medium px-8">
-              Centra el código de barra impreso en el recuadro para identificar el producto automáticamente.
+          )}
+
+          {cameraStatus === 'error' && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-50/90 backdrop-blur-sm z-10 p-6 text-center">
+              <div className="bg-red-100 p-4 rounded-full text-red-600 mb-4">
+                <Camera size={40} />
+              </div>
+              <p className="text-sm font-bold text-red-900 mb-2">Error de Acceso</p>
+              <p className="text-xs text-red-700 mb-6">
+                No se pudo acceder a la cámara. Asegúrate de dar permisos en tu navegador (Safari &gt; Ajustes &gt; Cámara).
+              </p>
+              <button
+                onClick={() => html5QrCode && startCamera(html5QrCode)}
+                className="bg-red-600 text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-red-700 transition-colors shadow-lg"
+              >
+                Reintentar Acceso
+              </button>
+            </div>
+          )}
+
+          <div className="mt-6 flex flex-col items-center text-center space-y-2">
+            <div className="animate-pulse bg-blue-100 text-blue-700 px-4 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest">
+              {cameraStatus === 'running' ? 'Escaneando...' : 'Preparando...'}
+            </div>
+            <p className="text-xs text-slate-500 font-medium px-8">
+              Centra el código de barra en el recuadro para identificar el producto automáticamente.
             </p>
           </div>
         </div>
 
         <div className="p-6 border-t border-slate-100 flex justify-center">
-          <button 
+          <button
             onClick={() => window.location.reload()}
             className="text-slate-400 hover:text-blue-600 flex items-center gap-2 text-sm font-medium transition-colors"
           >
-            <RefreshCw size={16} /> Reiniciar Cámara
+            <RefreshCw size={16} /> Reiniciar Aplicación
           </button>
         </div>
       </div>
 
-      {/* Styles to clean up the default html5-qrcode UI */}
       <style jsx global>{`
-        #reader__dashboard {
-          display: none !important;
-        }
-        #reader__status_span {
-          display: none !important;
-        }
         #reader video {
           border-radius: 12px;
           object-fit: cover !important;
-        }
-        #reader img {
-            display: none;
-        }
-        #reader button {
-            background-color: #2563eb;
-            color: white;
-            font-weight: bold;
-            padding: 8px 16px;
-            border-radius: 8px;
-            margin-top: 10px;
+          width: 100% !important;
+          height: 100% !important;
         }
       `}</style>
     </div>

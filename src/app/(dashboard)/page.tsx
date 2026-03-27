@@ -2,7 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Ship, Package, History, AlertTriangle, Loader2 } from 'lucide-react'
+import { Ship, Package, History, AlertTriangle, Loader2, Plus, Search, Camera } from 'lucide-react'
+import Link from 'next/link'
+import ProductModal from '@/components/ProductModal'
+import BarcodeScanner from '@/components/BarcodeScanner'
+import { useRouter } from 'next/navigation'
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -12,42 +16,54 @@ export default function Dashboard() {
     lowStock: 0
   })
   const [loading, setLoading] = useState(true)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
   const supabase = createClient()
+  const router = useRouter()
+
+  const handleScan = (code: string) => {
+    router.push(`/productos?search=${code}`)
+  }
 
   useEffect(() => {
     fetchStats()
   }, [])
 
   const fetchStats = async () => {
-    setLoading(true)
-    
-    // 1. Ships count
-    const { count: shipsCount } = await supabase.from('ships').select('*', { count: 'exact', head: true })
-    
-    // 2. Warehouses count
-    const { count: whCount } = await supabase.from('warehouses').select('*', { count: 'exact', head: true })
-    
-    // 3. Movements today
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const { count: movCount } = await supabase
-      .from('movements')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', today.toISOString())
-    
-    // 4. Low stock count
-    const { count: lowCount } = await supabase
-      .from('stock')
-      .select('*', { count: 'exact', head: true })
-      .lt('quantity', 5)
+    try {
+      setLoading(true)
+      
+      // 1. Ships count
+      const { count: shipsCount } = await supabase.from('ships').select('id', { count: 'exact', head: true })
+      
+      // 2. Warehouses count
+      const { count: whCount } = await supabase.from('warehouses').select('id', { count: 'exact', head: true })
+      
+      // 3. Movements today
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const { count: movCount } = await supabase
+        .from('movements')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', today.toISOString())
+      
+      // 4. Low stock count
+      const { count: lowCount } = await supabase
+        .from('stock')
+        .select('id', { count: 'exact', head: true })
+        .lt('quantity', 5)
 
-    setStats({
-      ships: shipsCount || 0,
-      warehouses: whCount || 0,
-      movementsToday: movCount || 0,
-      lowStock: lowCount || 0
-    })
-    setLoading(false)
+      setStats({
+        ships: shipsCount || 0,
+        warehouses: whCount || 0,
+        movementsToday: movCount || 0,
+        lowStock: lowCount || 0
+      })
+    } catch (err) {
+      console.error("Error fetching stats:", err)
+    } finally {
+      setLoading(false)
+    }
   }
 
   if (loading) {
@@ -58,11 +74,37 @@ export default function Dashboard() {
     )
   }
 
+
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Dashboard</h2>
-        <p className="text-slate-500 mt-2">Visión general del inventario en la flota Ultratug.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-tight">Dashboard</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Visión general del inventario en la flota Ultratug.</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-3 md:flex gap-3 w-full md:w-auto">
+          <button
+            onClick={() => setIsScannerOpen(true)}
+            className="bg-slate-900 hover:bg-black text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+          >
+            <Camera size={20} /> <span className="sm:hidden lg:inline">Escanear</span>
+            <span className="hidden sm:inline lg:hidden">Scan</span>
+          </button>
+          <Link
+            href="/productos"
+            className="bg-white border border-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-sm hover:bg-slate-50 transition-all text-center"
+          >
+            <Search size={20} /> <span className="sm:hidden lg:inline">Buscar Producto</span>
+            <span className="hidden sm:inline lg:hidden">Buscar</span>
+          </Link>
+          <button
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95"
+          >
+            <Plus size={20} /> <span className="sm:hidden lg:inline">Nuevo Producto</span>
+            <span className="hidden sm:inline lg:hidden">Nuevo</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -96,13 +138,25 @@ export default function Dashboard() {
       <div className="grid gap-6 md:grid-cols-2">
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="font-semibold text-lg mb-4 text-slate-900 border-b pb-2">Últimos Movimientos</h3>
-          <p className="text-slate-400 text-sm italic">Dirígete a la sección de Ingresos o Retiros para ver el historial detallado.</p>
+          <p className="text-slate-500 text-sm italic font-medium">Dirígete a la sección de Ingresos o Retiros para ver el historial detallado.</p>
         </div>
         <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <h3 className="font-semibold text-lg mb-4 text-slate-900 border-b pb-2">Distribución de Stock</h3>
-          <p className="text-slate-400 text-sm italic">Dirígete a la sección de Stock para ver el detalle por pañol.</p>
+          <p className="text-slate-500 text-sm italic font-medium">Dirígete a la sección de Stock para ver el detalle por pañol.</p>
         </div>
       </div>
+
+      <ProductModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchStats} 
+      />
+
+      <BarcodeScanner 
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScan}
+      />
     </div>
   )
 }

@@ -8,22 +8,26 @@ export default function ProfileCheck() {
 
   useEffect(() => {
     const checkProfile = async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) return
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single()
 
-      if (!profile) {
-        // Auto-create profile for first-time login
-        await supabase.from('profiles').insert({
-          id: user.id,
-          full_name: user.email?.split('@')[0] || 'Usuario',
-          role: 'ADMIN' // Default first user as Admin or change as needed
-        })
+        if (!profile) {
+          // Auto-create profile for first-time login
+          await supabase.from('profiles').insert({
+            id: user.id,
+            full_name: user.email?.split('@')[0] || 'Usuario',
+            role: 'ADMIN' // Default first user as Admin or change as needed
+          })
+        }
+      } catch (err) {
+        console.error("Profile check error:", err)
       }
     }
 

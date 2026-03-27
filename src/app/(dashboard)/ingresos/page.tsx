@@ -28,21 +28,21 @@ export default function IngresosPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Ingresos de Productos</h2>
-          <p className="text-slate-500 mt-2">Registro de entrada de repuestos y materiales a bodega.</p>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-tight">Ingresos de Productos</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Registro de entrada de repuestos y materiales a bodega.</p>
         </div>
         <Link 
           href="/ingresos/nuevo"
-          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg transition-all active:scale-95"
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 w-full md:w-auto"
         >
           <Plus size={20} /> Nuevo Ingreso
         </Link>
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto -mx-1 md:mx-0">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
@@ -56,11 +56,11 @@ export default function IngresosPage() {
             <tbody className="divide-y divide-slate-100">
               {loading ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">Cargando ingresos...</td>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500 italic font-medium">Cargando ingresos...</td>
                 </tr>
               ) : movements.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-6 py-10 text-center text-slate-400 italic">No hay ingresos registrados aún.</td>
+                  <td colSpan={5} className="px-6 py-10 text-center text-slate-500 italic font-medium">No hay ingresos registrados aún.</td>
                 </tr>
               ) : (
                 movements.map((m) => (

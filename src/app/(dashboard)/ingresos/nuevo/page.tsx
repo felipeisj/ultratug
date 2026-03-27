@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
 import { useRouter } from 'next/navigation'
+import { generateShortBarcode } from '@/utils/barcode'
+import BarcodeScanner from '@/components/BarcodeScanner'
 import { 
   ArrowLeft, 
   Search, 
@@ -12,7 +14,9 @@ import {
   CheckCircle2,
   AlertCircle,
   Printer,
-  Loader2
+  Loader2,
+  Plus,
+  Camera
 } from 'lucide-react'
 import Link from 'next/link'
 import Barcode from 'react-barcode'
@@ -24,6 +28,11 @@ export default function NuevoIngresoPage() {
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
+  
+  const handleScan = (code: string) => {
+    handleProductSearch(code)
+  }
   
   // Options
   const [warehouses, setWarehouses] = useState<any[]>([])
@@ -37,7 +46,7 @@ export default function NuevoIngresoPage() {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    barcode: '',
+    barcode: generateShortBarcode(),
     warehouse_id: '',
     quantity: 1,
     received_by: '',
@@ -85,7 +94,7 @@ export default function NuevoIngresoPage() {
   }
 
   const generateBarcode = () => {
-    const code = 'UT-' + Math.random().toString(36).substring(2, 8).toUpperCase()
+    const code = generateShortBarcode()
     setFormData({ ...formData, barcode: code })
   }
 
@@ -125,31 +134,6 @@ export default function NuevoIngresoPage() {
       })
       if (movErr) throw movErr
 
-      // 3. Update Stock
-      // Note: In a real app, use a RPC or Trigger for atomicity. 
-      // For MVP, we'll upsert manually.
-      const { data: existingStock } = await supabase
-        .from('stock')
-        .select('*')
-        .eq('product_id', productId)
-        .eq('warehouse_id', formData.warehouse_id)
-        .single()
-
-      if (existingStock) {
-        await supabase
-          .from('stock')
-          .update({ quantity: existingStock.quantity + formData.quantity, updated_at: new Date().toISOString() })
-          .eq('id', existingStock.id)
-      } else {
-        await supabase
-          .from('stock')
-          .insert({
-            product_id: productId,
-            warehouse_id: formData.warehouse_id,
-            quantity: formData.quantity
-          })
-      }
-
       router.push('/ingresos')
       router.refresh()
     } catch (err: any) {
@@ -179,20 +163,31 @@ export default function NuevoIngresoPage() {
         <form onSubmit={handleSubmit} className="p-8 space-y-8">
           {/* Product Search / New */}
           <section className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b pb-2">1. Identificación del Producto</h3>
-            
-            {!selectedProduct ? (
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
-                  <Search size={18} />
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 border-b pb-2">1. Identificación del Producto</h3>
+                        {!selectedProduct ? (
+              <div className="space-y-4">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                      <Search size={18} />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Buscar producto existente por nombre o código..."
+                      value={productSearch}
+                      onChange={(e) => handleProductSearch(e.target.value)}
+                      className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 placeholder:text-slate-500"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsScannerOpen(true)}
+                    className="bg-slate-900 text-white p-4 rounded-xl hover:bg-black transition-all shadow-lg active:scale-95"
+                    title="Escanear con cámara"
+                  >
+                    <Camera size={20} />
+                  </button>
                 </div>
-                <input
-                  type="text"
-                  placeholder="Buscar producto existente por nombre o código..."
-                  value={productSearch}
-                  onChange={(e) => handleProductSearch(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                />
                 
                 {foundProducts.length > 0 && (
                   <div className="absolute z-10 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden">
@@ -256,7 +251,7 @@ export default function NuevoIngresoPage() {
                       required
                       value={formData.barcode}
                       onChange={(e) => setFormData({...formData, barcode: e.target.value})}
-                      className="flex-1 px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                      className="flex-1 px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm text-slate-900 placeholder:text-slate-400"
                       placeholder="UT-XXXXXX"
                     />
                     <button 
@@ -311,7 +306,7 @@ export default function NuevoIngresoPage() {
 
           {/* Destination & Quantity */}
           <section className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b pb-2">2. Destino y Cantidad</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 border-b pb-2">2. Destino y Cantidad</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-semibold text-slate-700 block mb-1">Pañol de Destino</label>
@@ -319,7 +314,7 @@ export default function NuevoIngresoPage() {
                   required
                   value={formData.warehouse_id}
                   onChange={(e) => setFormData({...formData, warehouse_id: e.target.value})}
-                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white"
+                  className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white text-slate-900"
                 >
                   <option value="">Seleccionar pañol...</option>
                   {warehouses.map(w => (
@@ -382,6 +377,11 @@ export default function NuevoIngresoPage() {
           </div>
         </form>
       </div>
+      <BarcodeScanner 
+        isOpen={isScannerOpen}
+        onClose={() => setIsScannerOpen(false)}
+        onScan={handleScan}
+      />
     </div>
   )
 }

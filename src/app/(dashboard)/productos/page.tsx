@@ -2,19 +2,29 @@
 
 import { useState, useEffect } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { Search, Package, Printer, Barcode as BarcodeIcon, Loader2, Download } from 'lucide-react'
+import { Search, Package, Printer, Barcode as BarcodeIcon, Loader2, Plus, Edit3, Camera } from 'lucide-react'
 import Barcode from 'react-barcode'
 import { jsPDF } from 'jspdf'
+import ProductModal from '@/components/ProductModal'
+import { useSearchParams } from 'next/navigation'
+import JsBarcode from 'jsbarcode'
 
 export default function ProductosPage() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [selectedProduct, setSelectedProduct] = useState<any>(null)
   const supabase = createClient()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     fetchProducts()
-  }, [])
+    const querySearch = searchParams.get('search')
+    if (querySearch) {
+      setSearch(querySearch)
+    }
+  }, [searchParams])
 
   const fetchProducts = async () => {
     setLoading(true)
@@ -32,27 +42,57 @@ export default function ProductosPage() {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
-      format: [50, 25] // Standard small sticker size
+      format: [50, 25]
     })
 
+    // 1. Branding
+    doc.setFont('helvetica', 'bold')
     doc.setFontSize(8)
-    doc.text('ULTRATUG', 2, 5)
-    doc.setFontSize(6)
-    doc.text(product.name.substring(0, 30), 2, 8)
+    doc.text('ULTRATUG INVENTARIO', 25, 5, { align: 'center' })
     
-    // We would need to convert the barcode SVG to image for jspdf
-    // For now, let's just open the print dialog or similar
-    // Simplified version: Just a notification or a new window
-    window.print()
+    // 2. Product Name
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(7)
+    const splitName = doc.splitTextToSize(product.name.toUpperCase(), 45)
+    doc.text(splitName, 25, 9, { align: 'center' })
+
+    // 3. Barcode Image
+    const canvas = document.createElement('canvas')
+    JsBarcode(canvas, product.barcode, {
+      format: "CODE128",
+      width: 2,
+      height: 40,
+      displayValue: true,
+      fontSize: 20
+    })
+    
+    const imgData = canvas.toDataURL('image/png')
+    doc.addImage(imgData, 'PNG', 5, 12, 40, 10)
+    
+    doc.setFontSize(5)
+    doc.text(`ID: ${product.barcode}`, 25, 23, { align: 'center' })
+    
+    // Open print dialog
+    const pdfUrl = doc.output('bloburl')
+    window.open(pdfUrl, '_blank')
   }
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">Catálogo de Productos</h2>
-          <p className="text-slate-500 mt-2">Maestro de repuestos y materiales registrados.</p>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-tight">Catálogo de Productos</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Maestro de repuestos y materiales registrados.</p>
         </div>
+        <button
+          onClick={() => {
+            setSelectedProduct(null)
+            setIsModalOpen(true)
+          }}
+          className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all active:scale-95 w-full md:w-auto"
+        >
+          <Plus size={20} /> Nuevo Producto
+        </button>
       </div>
 
       <div className="relative max-w-md">
@@ -64,7 +104,7 @@ export default function ProductosPage() {
           placeholder="Buscar por nombre o código..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm"
+          className="w-full pl-10 pr-4 py-2 bg-white rounded-lg border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all shadow-sm text-slate-900 placeholder:text-slate-500"
         />
       </div>
 
@@ -72,7 +112,7 @@ export default function ProductosPage() {
         {loading ? (
           <div className="col-span-full flex justify-center py-20"><Loader2 className="animate-spin text-slate-300" size={32} /></div>
         ) : filteredProducts.length === 0 ? (
-          <div className="col-span-full bg-white p-10 rounded-xl border border-dashed border-slate-300 text-center text-slate-400 italic">
+          <div className="col-span-full bg-white p-10 rounded-xl border border-dashed border-slate-300 text-center text-slate-600 italic font-medium">
             No hay productos registrados.
           </div>
         ) : (
@@ -82,13 +122,25 @@ export default function ProductosPage() {
                 <div className="bg-slate-100 p-2 rounded-lg text-slate-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
                   <Package size={24} />
                 </div>
-                <button 
-                  onClick={() => printLabel(p)}
-                  className="text-slate-300 hover:text-blue-600 transition-colors"
-                  title="Imprimir Etiqueta"
-                >
-                  <Printer size={20} />
-                </button>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      setSelectedProduct(p)
+                      setIsModalOpen(true)
+                    }}
+                    className="text-slate-300 hover:text-blue-600 transition-colors"
+                    title="Editar"
+                  >
+                    <Edit3 size={20} />
+                  </button>
+                  <button 
+                    onClick={() => printLabel(p)}
+                    className="text-slate-300 hover:text-blue-600 transition-colors"
+                    title="Imprimir Etiqueta"
+                  >
+                    <Printer size={20} />
+                  </button>
+                </div>
               </div>
               <h4 className="font-bold text-slate-900 text-lg mb-1 leading-tight">{p.name}</h4>
               <p className="text-xs text-slate-500 mb-4 h-8 line-clamp-2">{p.description || 'Sin descripción'}</p>
@@ -107,6 +159,13 @@ export default function ProductosPage() {
           ))
         )}
       </div>
+
+      <ProductModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        onSuccess={fetchProducts} 
+        product={selectedProduct}
+      />
     </div>
   )
 }

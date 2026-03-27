@@ -49,9 +49,11 @@ export default function StockPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div>
-        <h2 className="text-3xl font-bold tracking-tight text-slate-900">Stock / Bodega</h2>
-        <p className="text-slate-500 mt-2">Consulta de inventario disponible en tiempo real.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-slate-900 leading-tight">Stock / Bodega</h2>
+          <p className="text-slate-500 mt-1 text-sm md:text-base">Consulta de inventario disponible en tiempo real.</p>
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm transition-all focus-within:shadow-md">
@@ -64,7 +66,7 @@ export default function StockPage() {
             placeholder="Buscar por nombre o código de barra..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            className="w-full pl-10 pr-4 py-2 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900 placeholder:text-slate-500"
           />
         </div>
         <div className="flex items-center gap-2">
@@ -72,7 +74,7 @@ export default function StockPage() {
           <select
             value={filterShip}
             onChange={(e) => setFilterShip(e.target.value)}
-            className="px-4 py-2 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+            className="px-4 py-2 bg-slate-50 rounded-lg border border-slate-200 focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none transition-all text-slate-900"
           >
             <option value="">Todos los Barcos</option>
             {ships.map((ship: any) => (
@@ -84,20 +86,20 @@ export default function StockPage() {
 
       <div className="grid gap-6">
         {loading ? (
-          <div className="flex flex-col items-center justify-center p-20 text-slate-400">
+          <div className="flex flex-col items-center justify-center p-20 text-slate-500">
             <Loader2 className="animate-spin mb-4" size={32} />
-            <p className="italic">Cargando inventario...</p>
+            <p className="italic font-medium">Cargando inventario...</p>
           </div>
         ) : filteredStock.length === 0 ? (
-          <div className="bg-white p-20 rounded-xl border border-dashed border-slate-300 text-center text-slate-400">
+          <div className="bg-white p-20 rounded-xl border border-dashed border-slate-300 text-center text-slate-600">
             <LayoutGrid size={48} className="mx-auto mb-4 opacity-20" />
-            <p className="text-lg">No se encontraron productos en stock.</p>
-            <p className="text-sm">Intenta ajustar los filtros o registra un nuevo ingreso.</p>
+            <p className="text-lg font-bold">No se encontraron productos en stock.</p>
+            <p className="text-sm font-medium">Intenta ajustar los filtros o registra un nuevo ingreso.</p>
           </div>
         ) : (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
+            <div className="overflow-x-auto -mx-1 md:mx-0">
+              <table className="w-full text-left border-collapse min-w-[600px] md:min-w-full">
                 <thead>
                   <tr className="bg-slate-50 border-b border-slate-200">
                     <th className="px-6 py-4 text-sm font-semibold text-slate-600">Barco / Pañol</th>

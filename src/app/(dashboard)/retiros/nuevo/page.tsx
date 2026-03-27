@@ -11,9 +11,11 @@ import {
   CheckCircle2,
   AlertCircle,
   Loader2,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Camera
 } from 'lucide-react'
 import Link from 'next/link'
+import BarcodeScanner from '@/components/BarcodeScanner'
 
 export default function NuevoRetiroPage() {
   const router = useRouter()
@@ -21,6 +23,17 @@ export default function NuevoRetiroPage() {
   
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isScannerOpen, setIsScannerOpen] = useState(false)
+
+  const handleScan = (code: string) => {
+    // Try to find product by barcode or exact code
+    const item = stockItems.find(s => s.products?.barcode === code)
+    if (item) {
+      handleStockSelect(item.id)
+    } else {
+      setError(`No se encontró stock para el código: ${code}`)
+    }
+  }
   
   // Options
   const [warehouses, setWarehouses] = useState<any[]>([])
@@ -86,41 +99,6 @@ export default function NuevoRetiroPage() {
       })
       if (movErr) throw movErr
 
-      // 2. Update Source Stock
-      const { error: srcErr } = await supabase
-        .from('stock')
-        .update({ 
-          quantity: selectedStock.quantity - formData.quantity, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('id', selectedStock.id)
-      if (srcErr) throw srcErr
-
-      // 3. Update Destination Stock (if Traslado)
-      if (formData.type === 'TRASLADO') {
-        const { data: destStock } = await supabase
-          .from('stock')
-          .select('*')
-          .eq('product_id', selectedStock.product_id)
-          .eq('warehouse_id', formData.to_warehouse_id)
-          .single()
-
-        if (destStock) {
-          await supabase
-            .from('stock')
-            .update({ quantity: destStock.quantity + formData.quantity, updated_at: new Date().toISOString() })
-            .eq('id', destStock.id)
-        } else {
-          await supabase
-            .from('stock')
-            .insert({
-              product_id: selectedStock.product_id,
-              warehouse_id: formData.to_warehouse_id,
-              quantity: formData.quantity
-            })
-        }
-      }
-
       router.push('/retiros')
       router.refresh()
     } catch (err: any) {
@@ -168,23 +146,33 @@ export default function NuevoRetiroPage() {
 
           {/* Product Selection from Stock */}
           <section className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b pb-2">1. Seleccionar Producto y Origen</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 border-b pb-2">1. Seleccionar Producto y Origen</h3>
             
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 block">Producto en Stock</label>
-              <select
-                required
-                value={formData.stock_id}
-                onChange={(e) => handleStockSelect(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all shadow-sm"
-              >
-                <option value="">Buscar en el inventario...</option>
-                {stockItems.map(s => (
-                  <option key={s.id} value={s.id}>
-                    {s.products?.name} (Stock: {s.quantity} {s.products?.unit}s) — {s.warehouses?.ships?.name} / {s.warehouses?.name}
-                  </option>
-                ))}
-              </select>
+              <div className="flex gap-2">
+                <select
+                  required
+                  value={formData.stock_id}
+                  onChange={(e) => handleStockSelect(e.target.value)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all shadow-sm text-slate-900"
+                >
+                  <option value="">Buscar en el inventario...</option>
+                  {stockItems.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.products?.name} (Stock: {s.quantity} {s.products?.unit}s) — {s.warehouses?.ships?.name} / {s.warehouses?.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => setIsScannerOpen(true)}
+                  className="bg-slate-900 text-white p-4 rounded-xl hover:bg-black transition-all shadow-lg active:scale-95"
+                  title="Escanear con cámara"
+                >
+                  <Camera size={20} />
+                </button>
+              </div>
             </div>
 
             {selectedStock && (
@@ -211,7 +199,7 @@ export default function NuevoRetiroPage() {
 
           {/* Quantity and Destination */}
           <section className="space-y-4">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 border-b pb-2">2. Cantidad y Destino</h3>
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-600 border-b pb-2">2. Cantidad y Destino</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="text-sm font-semibold text-slate-700 block mb-1">Cantidad a {formData.type === 'TRASLADO' ? 'mover' : 'retirar'}</label>
@@ -224,7 +212,7 @@ export default function NuevoRetiroPage() {
                     required
                     value={formData.quantity}
                     onChange={(e) => setFormData({...formData, quantity: parseFloat(e.target.value)})}
-                    className="flex-1 px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold"
+                    className="flex-1 px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none text-lg font-bold text-slate-900"
                   />
                   <span className="text-slate-400 font-medium">{selectedStock?.products?.unit}s</span>
                 </div>
@@ -237,7 +225,7 @@ export default function NuevoRetiroPage() {
                     required
                     value={formData.to_warehouse_id}
                     onChange={(e) => setFormData({...formData, to_warehouse_id: e.target.value})}
-                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                    className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-slate-900"
                   >
                     <option value="">Seleccionar pañol destino...</option>
                     {warehouses.filter(w => w.id !== selectedStock?.warehouse_id).map(w => (
@@ -253,7 +241,7 @@ export default function NuevoRetiroPage() {
                   required
                   value={formData.sent_by}
                   onChange={(e) => setFormData({...formData, sent_by: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none bg-white transition-all text-slate-900"
                 >
                   <option value="">Quién autoriza el movimiento?</option>
                   {profiles.map(p => (
@@ -267,7 +255,7 @@ export default function NuevoRetiroPage() {
                 <textarea
                   value={formData.notes}
                   onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none h-24"
+                  className="w-full px-4 py-3 rounded-lg border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none h-24 text-slate-900 placeholder:text-slate-400"
                   placeholder="Repuesto para motor principal babor..."
                 />
               </div>
@@ -302,6 +290,11 @@ export default function NuevoRetiroPage() {
           </div>
         </form>
       </div>
+      <BarcodeScanner 
+        isOpen={isScannerOpen}
+        onScan={handleScan}
+        onClose={() => setIsScannerOpen(false)}
+      />
     </div>
   )
 }

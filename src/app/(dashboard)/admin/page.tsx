@@ -85,7 +85,7 @@ export default function AdminPage() {
         {/* Ships Section */}
         <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
+            <h3 className="text-xl font-semibold flex items-center gap-2 text-slate-800">
               <Ship className="text-blue-600" size={24} />
               Barcos
             </h3>
@@ -98,7 +98,7 @@ export default function AdminPage() {
                 placeholder="Nombre del barco (ej: Ultratug I)"
                 value={newShipName}
                 onChange={(e) => setNewShipName(e.target.value)}
-                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-500"
                 required
               />
               <input
@@ -106,7 +106,7 @@ export default function AdminPage() {
                 placeholder="IMO Number (opcional)"
                 value={newShipImo}
                 onChange={(e) => setNewShipImo(e.target.value)}
-                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-500"
               />
             </div>
             <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded flex items-center justify-center gap-2 transition-colors">
@@ -138,7 +138,7 @@ export default function AdminPage() {
         {/* Warehouses Section */}
         <section className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-semibold flex items-center gap-2">
+            <h3 className="text-xl font-semibold flex items-center gap-2 text-slate-800">
               <Warehouse className="text-blue-600" size={24} />
               Pañoles (Bodegas)
             </h3>
@@ -149,7 +149,7 @@ export default function AdminPage() {
               <select
                 value={selectedShipId}
                 onChange={(e) => setSelectedShipId(e.target.value)}
-                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
                 required
               >
                 <option value="">Seleccionar Barco...</option>
@@ -162,7 +162,7 @@ export default function AdminPage() {
                 placeholder="Nombre Pañol (ej: Máquinas)"
                 value={newWarehouseName}
                 onChange={(e) => setNewWarehouseName(e.target.value)}
-                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500"
+                className="px-3 py-2 rounded border border-slate-300 outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 placeholder:text-slate-500"
                 required
               />
             </div>

@@ -9,7 +9,21 @@ import ProductModal from '@/components/ProductModal'
 import { useSearchParams } from 'next/navigation'
 import JsBarcode from 'jsbarcode'
 
+import { Suspense } from 'react'
+
 export default function ProductosPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex justify-center py-20">
+        <Loader2 className="animate-spin text-slate-300" size={32} />
+      </div>
+    }>
+      <ProductosContent />
+    </Suspense>
+  )
+}
+
+function ProductosContent() {
   const [products, setProducts] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
